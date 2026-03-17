@@ -5,144 +5,150 @@ import winreg
 import os
 import json
 import ctypes
+import sys
 from tkinter import Tk, filedialog
-from colorama import init, Fore, Style
+from colorama import init, Fore
 
-# Initialize colorama
+# Initialize colors
 init(autoreset=True)
 
-# Banner
-ascii_art = r"""
- ██▒   █▓ ▄▄▄       ██▓     ▒█████   ██▀███   ▄▄▄       ███▄    █ ▄▄▄█████▓
-▓██░   █▒▒████▄    ▓██▒    ▒██▒  ██▒▓██ ▒ ██▒▒████▄     ██ ▀█   █ ▓  ██▒ ▓▒
- ▓██  █▒░▒██  ▀█▄  ▒██░    ▒██░  ██▒▓██ ░▄█ ▒▒██  ▀█▄  ▓██  ▀█ ██▒▒ ▓██░ ▒░
-  ▒██ █░░░██▄▄▄▄██ ▒██░    ▒██   ██░▒██▀▀█▄  ░██▄▄▄▄██ ▓██▒  ▐▌██▒░ ▓██▓ ░ 
+# Constants for Windows API
+SPI_SETMOUSESPEED = 0x0071
+SPI_GETMOUSESPEED = 0x0070
+SPI_SETMOUSE = 0x0004
+SW_HIDE = 0
+SW_SHOW = 5
+
+ASCII_ART = r"""
+ ██▒   █▓ ▄▄▄         ██▓     ▒█████    ██▀███   ▄▄▄         ███▄   █ ▄▄▄█████▓
+▓██░   █▒▒████▄      ▓██▒     ▒██▒   ██▒▓██ ▒ ██▒▒████▄       ██ ▀█   █ ▓  ██▒ ▓▒
+ ▓██  █▒░▒██  ▀█▄    ▒██░     ▒██░   ██▒▓██ ░▄█ ▒▒██  ▀█▄     ▓██  ▀█ ██▒▒ ▓██░ ▒░
+  ▒██ █░░░██▄▄▄▄██  ▒██░     ▒██   ██░▒██▀▀█▄  ░██▄▄▄▄██  ▓██▒  ▐▌██▒░ ▓██▓ ░ 
    ▒▀█░   ▓█   ▓██▒░██████▒░ ████▓▒░░██▓ ▒██▒ ▓█   ▓██▒▒██░   ▓██░  ▒██▒ ░ 
-   ░ ▐░   ▒▒   ▓▒█░░ ▒░▓  ░░ ▒░▒░▒░ ░ ▒▓ ░▒▓░ ▒▒   ▓▒█░░ ▒░   ▒ ▒   ▒ ░░   
-   ░ ░░    ▒   ▒▒ ░░ ░ ▒  ░  ░ ▒ ▒░   ░▒ ░ ▒░  ▒   ▒▒ ░░ ░░   ░ ▒░    ░    
-     ░░    ░   ▒     ░ ░   ░ ░ ░ ▒    ░░   ░   ░   ▒      ░   ░ ░   ░      
-      ░        ░  ░    ░  ░    ░ ░     ░           ░  ░         ░          
-     ░                                                                     
 """
-print(Fore.RED + ascii_art)
 
-# === CONFIG ===
+class ConfigManager:
+    def __init__(self, path="config.json"):
+        self.path = path
+        self.config = self.load_config()
 
-def choose_file_dialog(title):
-    root = Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename(title=title)
-    root.destroy()
-    return file_path
+    def choose_file(self, title):
+        root = Tk()
+        root.withdraw()
+        path = filedialog.askopenfilename(title=title)
+        root.destroy()
+        return path
 
-def load_config(path="config.json"):
-    default_config = {
-        "run_womic": False,
-        "womic_path": "",
-        "valorant_path": "",
-        "game_resolution": {"x": 1280, "y": 960},
-        "exit_resolution": {"x": 1920, "y": 1080}
-    }
+    def load_config(self):
+        default = {
+            "run_womic": False,
+            "womic_path": "",
+            "valorant_path": "",
+            "game_res": {"x": 1280, "y": 960},
+            "exit_res": {"x": 1920, "y": 1080},
+            "mouse_settings": {"game_speed": 10, "disable_accel": True}
+        }
+        if os.path.exists(self.path):
+            with open(self.path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                for k, v in default.items():
+                    if k not in cfg: cfg[k] = v
+                self.config = cfg
+        else:
+            self.config = default
 
-    if not os.path.exists(path):
-        print(Fore.YELLOW + "[CONFIG] First-time setup: Please choose paths for Valorant and WO Mic.")
-        womic_path = choose_file_dialog("Select WO Mic Client (WOMicClient.exe)")
-        valorant_path = choose_file_dialog("Select Riot Client (RiotClientServices.exe)")
+        changed = False
+        if not self.config.get("valorant_path"):
+            print(Fore.YELLOW + "[CONFIG] Selecting Valorant path...")
+            self.config["valorant_path"] = self.choose_file("Select RiotClientServices.exe")
+            changed = True
+        if changed: self.save_config()
+        return self.config
 
-        default_config["womic_path"] = womic_path
-        default_config["valorant_path"] = valorant_path
+    def save_config(self):
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(self.config, f, indent=4)
 
+class SystemOptimizer:
+    def __init__(self):
+        self.original_speed = self.get_mouse_speed()
+
+    @staticmethod
+    def get_mouse_speed():
+        speed = ctypes.c_int()
+        ctypes.windll.user32.SystemParametersInfoW(SPI_GETMOUSESPEED, 0, ctypes.byref(speed), 0)
+        return speed.value
+
+    def apply_mouse_settings(self, speed, disable_accel):
+        ctypes.windll.user32.SystemParametersInfoW(SPI_SETMOUSESPEED, 0, speed, 0)
+        if disable_accel:
+            params = (ctypes.c_int * 3)(0, 0, 0)
+            ctypes.windll.user32.SystemParametersInfoW(SPI_SETMOUSE, 0, params, 1)
+        print(Fore.GREEN + f"[OK] Mouse: Speed {speed} | Accel: {'OFF' if disable_accel else 'ON'}")
+
+    @staticmethod
+    def set_nvidia_settings():
+        print(Fore.CYAN + "[*] Checking NVIDIA Scaling...")
+        path = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(default_config, f, indent=4)
-            print(Fore.GREEN + f"[CONFIG] Config saved to: {path}")
-            return default_config
-        except Exception as e:
-            print(Fore.RED + f"[CONFIG ERROR] Failed to save config: {e}")
-            return default_config
-    else:
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(Fore.RED + f"[CONFIG ERROR] Failed to read config: {e}")
-            return default_config
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path, 0, winreg.KEY_ALL_ACCESS) as key:
+                val, _ = winreg.QueryValueEx(key, "Scaling")
+                if val == 2:
+                    print(Fore.GREEN + "[SKIP] NVIDIA Scaling already set to Full-screen.")
+                    return
+                winreg.SetValueEx(key, "Scaling", 0, winreg.REG_DWORD, 2)
+                print(Fore.GREEN + "[OK] NVIDIA Registry updated.")
+        except: 
+            print(Fore.RED + "[!] NVIDIA Registry access failed.")
 
-# === HELPERS ===
+    @staticmethod
+    def toggle_taskbar(show=True):
+        hwnd = ctypes.windll.user32.FindWindowW("Shell_TrayWnd", None)
+        ctypes.windll.user32.ShowWindow(hwnd, SW_SHOW if show else SW_HIDE)
 
-def set_taskbar_visibility(visible: bool):
-    key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3"
-    try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_ALL_ACCESS) as key:
-            settings, regtype = winreg.QueryValueEx(key, "Settings")
-            settings = bytearray(settings)
-            settings[8] = 2 if visible else 3
-            winreg.SetValueEx(key, "Settings", 0, regtype, bytes(settings))
-        subprocess.run("taskkill /f /im explorer.exe", shell=True)
-        subprocess.Popen("explorer.exe", shell=True)
-    except Exception as e:
-        print(Fore.YELLOW + f"[TASKBAR ERROR] {e}")
+    @staticmethod
+    def run_qres(x, y):
+        qres = os.path.join(os.getcwd(), "QRes.exe")
+        if os.path.exists(qres):
+            subprocess.run([qres, f"/x:{x}", f"/y:{y}"], capture_output=True)
 
-def is_process_running(name):
-    for proc in psutil.process_iter(['name']):
-        try:
-            if proc.info['name'] and name.lower() in proc.info['name'].lower():
-                return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    return False
+def main():
+    manager = ConfigManager()
+    opt = SystemOptimizer()
+    cfg = manager.config
 
-def run_qres(x, y):
-    qres_path = os.path.join(os.getcwd(), "QRes.exe")
-    if not os.path.exists(qres_path):
-        print(Fore.RED + "[QRES ERROR] QRes.exe not found!")
-        return
-    subprocess.run([qres_path, f"/x:{x}", f"/y:{y}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    while True:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print(Fore.RED + ASCII_ART)
+        
+        opt.set_nvidia_settings()
+        opt.apply_mouse_settings(cfg["mouse_settings"]["game_speed"], cfg["mouse_settings"]["disable_accel"])
+        
+        print(Fore.CYAN + "[1] Hiding Taskbar...")
+        opt.toggle_taskbar(False)
 
-def run_program(path):
-    if os.path.exists(path):
-        subprocess.Popen(f'"{path}"', shell=True)
-    else:
-        print(Fore.RED + f"[LAUNCH ERROR] Path not found: {path}")
+        print(Fore.CYAN + "[2] Launching Valorant...")
+        subprocess.Popen(f'"{cfg["valorant_path"]}" --launch-product=valorant --launch-patchline=live', shell=True)
 
-# === MAIN ===
+        print(Fore.YELLOW + "[3] Waiting for game...")
+        while not any("VALORANT-Win64-Shipping" in p.name() for p in psutil.process_iter()):
+            time.sleep(1)
 
-config = load_config()
+        opt.run_qres(cfg['game_res']['x'], cfg['game_res']['y'])
+        print(Fore.GREEN + "\n>>> GOOD LUCK<<<")
 
-print(Fore.CYAN + "[1] Hiding Taskbar...")
-set_taskbar_visibility(False)
+        while any("VALORANT-Win64-Shipping" in p.name() for p in psutil.process_iter()):
+            time.sleep(5)
 
-if config.get("run_womic", False):
-    print(Fore.CYAN + "[2] Checking WO Mic...")
-    if not is_process_running("WOMicClient"):
-        run_program(config.get("womic_path", ""))
-        print(Fore.CYAN + "[2] WO Mic launched.")
-    else:
-        print(Fore.CYAN + "[2] WO Mic already running.")
-else:
-    print(Fore.YELLOW + "[2] Skipping WO Mic...")
+        print(Fore.YELLOW + "\n[!] Game closed. Restoring...")
+        opt.run_qres(cfg['exit_res']['x'], cfg['exit_res']['y'])
+        opt.toggle_taskbar(True)
+        opt.apply_mouse_settings(opt.original_speed, False) 
 
-print(Fore.CYAN + "[3] Launching Valorant...")
-run_program(config.get("valorant_path", "") + " --launch-product=valorant --launch-patchline=live")
+        if input(Fore.WHITE + "Press Enter to restart or type 'exit': ").lower() == 'exit': break
 
-print(Fore.YELLOW + "[4] Waiting for Valorant to start...")
-while not is_process_running("VALORANT-Win64-Shipping"):
-    time.sleep(1)
-
-res_game = config.get("game_resolution", {"x": 1280, "y": 960})
-print(Fore.CYAN + f"[5] Setting resolution to {res_game['x']}x{res_game['y']}...")
-run_qres(res_game["x"], res_game["y"])
-
-print(Fore.YELLOW + "[6] Valorant is running...")
-while is_process_running("VALORANT-Win64-Shipping"):
-    time.sleep(5)
-
-res_exit = config.get("exit_resolution", {"x": 1920, "y": 1080})
-print(Fore.CYAN + f"[7] Restoring resolution to {res_exit['x']}x{res_exit['y']}...")
-run_qres(res_exit["x"], res_exit["y"])
-
-print(Fore.CYAN + "[8] Restoring Taskbar...")
-set_taskbar_visibility(True)
-
-print(Fore.GREEN + "\nFinished.")
-input("Press Enter to exit...")
+if __name__ == "__main__":
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        print(Fore.RED + "RUN AS ADMINISTRATOR REQUIRED!")
+        sys.exit()
+    main()
