@@ -28,8 +28,13 @@ ASCII_ART = r"""
 """
 
 class ConfigManager:
-    def __init__(self, path="config.json"):
-        self.path = path
+    def __init__(self, folder_name="config", file_name="settings.json"):
+        # Create config folder if it doesn't exist
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+            print(Fore.YELLOW + f"[*] Created directory: {folder_name}")
+            
+        self.path = os.path.join(folder_name, file_name)
         self.config = self.load_config()
 
     def choose_file(self, title):
@@ -48,11 +53,14 @@ class ConfigManager:
             "exit_res": {"x": 1920, "y": 1080},
             "mouse_settings": {"game_speed": 10, "disable_accel": True}
         }
+        
         if os.path.exists(self.path):
             with open(self.path, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
+                # Ensure all keys exist
                 for k, v in default.items():
-                    if k not in cfg: cfg[k] = v
+                    if k not in cfg: 
+                        cfg[k] = v
                 self.config = cfg
         else:
             self.config = default
@@ -62,7 +70,10 @@ class ConfigManager:
             print(Fore.YELLOW + "[CONFIG] Selecting Valorant path...")
             self.config["valorant_path"] = self.choose_file("Select RiotClientServices.exe")
             changed = True
-        if changed: self.save_config()
+            
+        if changed: 
+            self.save_config()
+            
         return self.config
 
     def save_config(self):
@@ -92,14 +103,32 @@ class SystemOptimizer:
         path = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
         try:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path, 0, winreg.KEY_ALL_ACCESS) as key:
-                val, _ = winreg.QueryValueEx(key, "Scaling")
-                if val == 2:
-                    print(Fore.GREEN + "[SKIP] NVIDIA Scaling already set to Full-screen.")
+                try:
+                    scaling_val, _ = winreg.QueryValueEx(key, "Scaling")
+                except FileNotFoundError:
+                    scaling_val = None
+                    
+                try:
+                    override_val, _ = winreg.QueryValueEx(key, "Scaling.Override")
+                except FileNotFoundError:
+                    override_val = None
+
+                # Check for "Full-screen" (Scaling = 2) AND "Override..." checkbox (Scaling.Override = 1)
+                if scaling_val == 2 and override_val == 1:
+                    print(Fore.YELLOW + "[SKIP] NVIDIA is already set to Full-screen with Override enabled.")
                     return
+
+                # Apply settings if not already correct
                 winreg.SetValueEx(key, "Scaling", 0, winreg.REG_DWORD, 2)
-                print(Fore.GREEN + "[OK] NVIDIA Registry updated.")
-        except: 
-            print(Fore.RED + "[!] NVIDIA Registry access failed.")
+                try:
+                    # Attempt to set the override checkbox
+                    winreg.SetValueEx(key, "Scaling.Override", 0, winreg.REG_DWORD, 1)
+                except Exception as e:
+                    print(Fore.RED + f"[!] Could not set Scaling.Override: {e}")
+                
+                print(Fore.GREEN + "[OK] NVIDIA Registry updated to Full-screen with Override.")
+        except Exception as e: 
+            print(Fore.RED + f"[!] NVIDIA Registry access failed: {e}")
 
     @staticmethod
     def toggle_taskbar(show=True):
