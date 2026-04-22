@@ -1,64 +1,48 @@
-# True Stretched - Valorant Optimizer
+# ⚔️ VALORANT CORE | ELITE EDITION
 
-A clean and efficient Python script designed to automate system optimizations and force "True Stretched" resolution for Valorant players.
+**VALORANT CORE** is a high-performance system utility engineered for competitive players who demand a perfect "True Stretched" experience. This tool automates complex environment optimizations, ensuring zero latency and maximum visual clarity with a single click.
 
-## ✨ Key Features
+## ✨ Elite Features
 
-- **Auto-Resolution**
-The script uses QRes.exe to automatically switch your monitor to your stretched resolution (e.g., 1280x960) when the game starts. Once you close the game, it instantly restores your native resolution.
+- **True Stretched Overdrive**: Forces hardware-level resolution scaling using embedded `qres` and native Win32 kernel APIs.
+- **GPU Safety Radar**: Real-time hardware scanning validates custom resolutions before deployment to prevent display hangs or black screens.
+- **High-Fidelity Animations**: Delta-time based 144Hz smooth transitions (Ease-Out-Quint) for a premium, responsive UI feel.
+- **CPU Priority Booster**: Dynamically elevates Valorant to "High Priority" in the Windows kernel to minimize frame-time variance and input lag.
+- **Aggressive Environment Control**: Automatic Taskbar management and PnP monitor pulsing to fix common Windows 11 stretching bugs.
+- **Persistent Log Console**: Real-time feedback and session history remain available after game termination for performance auditing.
 
-- **Deep Config Injection (True Stretched)**
-It deep-scans your `%LOCALAPPDATA%\VALORANT\Saved\Config` folder to find all `GameUserSettings.ini` files. It automatically forces your custom resolution, sets `FullscreenMode=1`, and disables letterboxing (`bShouldLetterbox=False`) directly into the game's engine for a flawless stretched experience.
+## 🚀 Setup & Build
 
-- **Mouse Precision**
-It forces a specific Windows mouse speed and disables "Enhance Pointer Precision" (Mouse Acceleration) via system API to ensure your aim remains raw and consistent.
+### Prerequisites
+- Windows 10/11 (64-bit)
+- **Run as Administrator** (Required for display and process priority modifications)
 
-- **NVIDIA Scaling Guard**
-The script checks your Windows Registry to ensure NVIDIA Scaling is set to "Full-screen" with the scaling override enabled. If it is already configured correctly, the script intelligently skips this step.
+### Installation
+1. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Build the standalone executable:
+   ```bash
+   python -m PyInstaller --noconsole --onefile --icon=valorant_logo.ico --add-data "qres.exe;." Stretche.py
+   ```
 
-- **Smart Taskbar Hider**
-Using direct Windows API calls, the script hides the Taskbar when you are in-game to prevent any focus issues or accidental clicks, restoring it automatically when you exit.
+## 🎮 How to Use
 
-- **Secondary Monitor Toggle**
-If enabled, it automatically disconnects your second monitor while the game is running (to maximize performance and prevent the mouse from drifting off-screen), then safely restores it after you close the game.
+1. **Dashboard**: Enter your target resolution (e.g., `1280x960`). The system will automatically validate and save your settings.
+2. **Core Engine**: Ensure your Riot Client path is detected. Toggle advanced behaviors like *FPS Booster* or *Monitor Pulse*.
+3. **Settings**: Fine-tune the UI font scale and animation speed to match your monitor's refresh rate.
+4. **Deploy**: Click **▶ INJECT GAME**. The tool will optimize your PC and launch the game.
+5. **Session End**: When you close Valorant, the tool will restore your native desktop resolution and log the session results.
 
-- **Process Monitoring**
-It continuously monitors system processes to detect exactly when Valorant starts and stops, making the entire optimization cycle fully hands-free.
+## 🛠 Technical Stack
+- **Framework**: CustomTkinter (Modern Fluent Design)
+- **Engine**: Python 3.14 / Win32 API
+- **Optimization**: Time-based Delta Interpolation
+- **Utilities**: QRes (Hardware Scaling)
 
-## 🛠 Requirements
-
-- **Operating System:** Windows 10 or Windows 11.
-- **Python Version:** Python 3.x installed.
-- **External Utility:** QRes.exe must be located in the same folder as the script.
-- **Python Modules:** psutil and colorama.
-
-## 📦 Installation
-
-1. Install the necessary Python libraries using pip:
-   `pip install psutil colorama`
-
-2. Download the `Stretche.py` script and place it in a dedicated folder.
-
-3. Ensure `QRes.exe` is in that same folder.
-
-## ⚙️ Configuration Explained
-
-After your first launch, a `settings.json` file will be generated inside a `config` folder. Here is what each setting does:
-
-- **game_res:** Defines the width (x) and height (y) for your stretched resolution.
-- **exit_res:** Defines the width (x) and height (y) for your native desktop resolution.
-- **mouse_settings:** - **game_speed:** Sets your Windows pointer speed (usually 10 for default).
-  - **disable_accel:** Set to true to turn off Windows mouse acceleration.
-- **disable_monitor:** Set to true if you want the script to automatically disable your secondary monitor while playing, and false to keep it on.
-- **valorant_path:** Stores the location of your RiotClientServices.exe so you don't have to select it again.
-
-## 🚀 How to Use
-
-1. Open your terminal (PowerShell or CMD) as **Administrator** (Required to modify Registry and Mouse settings).
-2. Navigate to your folder and run the script:
-   `python Stretche.py`
-3. The script will ask you to locate your Valorant executable if it's the first time.
-4. Keep the script running in the background. Once you launch the game, the script handles the rest automatically.
+## ⚠️ Disclaimer
+VALORANT CORE modifies system-level display settings and process priorities. It does not interfere with game memory or local files, ensuring compliance with standard anti-cheat policies. However, use it at your own risk. Not affiliated with Riot Games.
 
 ---
-*Developed by Minh*
+*Engineered for 0 Latency. Maximum Yield.*
