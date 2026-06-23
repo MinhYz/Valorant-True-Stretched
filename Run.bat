@@ -19,5 +19,5 @@ if '%errorlevel%' NEQ '0' (
     pushd "%~dp0"
 
 :: --- PHẦN CODE CHÍNH CỦA BẠN Ở DƯỚI ĐÂY ---
-python Stretche.py
+python ValorantCore.py
 pause
